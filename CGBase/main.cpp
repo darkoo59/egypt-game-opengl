@@ -1,86 +1,73 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <chrono>
+#include <thread>
+#include <cstdlib>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <iostream>
-#include <vector>
+#include "shader.hpp"
+#include "model.hpp"
+#include "renderable.hpp"
 
-const int WindowWidth = 800;
-const int WindowHeight = 800;
-const std::string WindowTitle = "Project-Egypt";
 
-/**
- * @brief Error callback function for GLFW. See GLFW docs for details
- *
- * @param error Error code
- * @param description Error message
- */
+const int WindowWidth = 1280;
+const int WindowHeight = 720;
+const std::string WindowTitle = "Egypt world";
+const float TargetFPS = 60.0f;
+const float TargetFrameTime = 1.0f / TargetFPS;
+const int steps = 100;
+const float moonAngle = 3.1415926 * 2.f / steps;
+
+void FramebufferSizeCallback(GLFWwindow* window, int width, int height)
+{
+    glViewport(0, 0, width, height);
+}
+
+static void
+KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
+    bool IsDown = action == GLFW_PRESS || action == GLFW_REPEAT;
+    switch (key) {
+    case GLFW_KEY_ESCAPE: glfwSetWindowShouldClose(window, GLFW_TRUE); break;
+    }
+}
+
 static void
 ErrorCallback(int error, const char* description) {
     std::cerr << "GLFW Error: " << description << std::endl;
 }
 
-
-/**
- * @brief Creates a shader program. For example purposes only
- * Real shader loading will be handled later during the course.
- * WARNING: Bad code ahead!
- *
- * returns Shader program ID
- */
-static unsigned
-GetShaderProgram() {
-    unsigned ProgramId = 0;
-
-    // NOTE(Jovan): Hard-coded, for example purposes only!
-    const char* VertexShaderSource = "#version 330 core\n"
-        "layout (location = 0) in vec3 aPos;\n"
-        "void main()\n"
-        "{\n"
-        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-        "}\0";
-    const char* FragmentShaderSource = "#version 330 core\n"
-        "out vec4 FragColor;\n"
-        "void main()\n"
-        "{\n"
-        "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-        "}\n\0";
-
-    unsigned VertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(VertexShader, 1, &VertexShaderSource, 0);
-    glCompileShader(VertexShader);
-    int Success = 0;
-    char InfoLog[512];
-    glGetShaderiv(VertexShader, GL_COMPILE_STATUS, &Success);
-    if (!Success) {
-        glGetShaderInfoLog(VertexShader, 512, 0, InfoLog);
-        std::cerr << "Error compiling vertex shader: " << InfoLog << std::endl;
-        return 1;
+void processInput(GLFWwindow* context, float& x, float& y, float& z)
+{
+    if (glfwGetKey(context, GLFW_KEY_A) == GLFW_PRESS)
+    {
+        x += 0.25;
+        if (x > 13)
+            x = 13;
     }
-
-    glCompileShader(VertexShader);
-    unsigned FragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(FragmentShader, 1, &FragmentShaderSource, 0);
-    glCompileShader(FragmentShader);
-    glGetShaderiv(FragmentShader, GL_COMPILE_STATUS, &Success);
-    if (!Success) {
-        glGetShaderInfoLog(FragmentShader, 512, 0, InfoLog);
-        std::cerr << "Error compiling fragment shader: " << InfoLog << std::endl;
-        return 0;
+    if (glfwGetKey(context, GLFW_KEY_D) == GLFW_PRESS)
+    {
+        x -= 0.25;
+        if (x < -13)
+            x = -13;
     }
-
-    ProgramId = glCreateProgram();
-    glAttachShader(ProgramId, VertexShader);
-    glAttachShader(ProgramId, FragmentShader);
-    glLinkProgram(ProgramId);
-
-    glGetProgramiv(ProgramId, GL_LINK_STATUS, &Success);
-    if (!Success) {
-        glGetProgramInfoLog(ProgramId, 512, NULL, InfoLog);
-        std::cerr << "Failed to link shader program:" << InfoLog << std::endl;
-        return 0;
+    if (glfwGetKey(context, GLFW_KEY_W) == GLFW_PRESS)
+    {
+        y += 0.25;
+        if (y > 13)
+            y = 13;
     }
-
-    return ProgramId;
+    if (glfwGetKey(context, GLFW_KEY_S) == GLFW_PRESS)
+    {
+        y -= 0.25;
+        if (y < -4)
+            y = -4;
+    }
 }
+
+float x = 0, y = 0, z = 0;
 
 int main() {
     GLFWwindow* Window = 0;
@@ -88,12 +75,11 @@ int main() {
         std::cerr << "Failed to init glfw" << std::endl;
         return -1;
     }
-    glEnable(GL_DEPTH_TEST);    //Darko Selakovic : Added for depth testing
-    glEnable(GL_CULL_FACE);     //Darko Selakovic : Added for backface culling
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwSetErrorCallback(ErrorCallback);
 
     Window = glfwCreateWindow(WindowWidth, WindowHeight, WindowTitle.c_str(), 0, 0);
     if (!Window) {
@@ -101,7 +87,10 @@ int main() {
         glfwTerminate();
         return -1;
     }
+
     glfwMakeContextCurrent(Window);
+    glfwSetKeyCallback(Window, KeyCallback);
+    glfwSetFramebufferSizeCallback(Window, FramebufferSizeCallback);
 
     GLenum GlewError = glewInit();
     if (GlewError != GLEW_OK) {
@@ -110,23 +99,225 @@ int main() {
         return -1;
     }
 
-    glfwSetErrorCallback(ErrorCallback);
+    Shader Basic("shaders/basic.vert", "shaders/basic.frag");
+    Shader RugShader("shaders/rug.vert", "shaders/basic.frag");
 
-    unsigned BasicProgram = GetShaderProgram();
-    //darko
-    //glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    while (!glfwWindowShouldClose(Window)) {
-        glClear(GL_COLOR_BUFFER_BIT);
-        glfwPollEvents();
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glUseProgram(BasicProgram);
-        //darko
-
-
-        glUseProgram(0);
-        glfwSwapBuffers(Window);
+    //Ucitavanje modela tepiha
+    Model Rug("models/Rug.obj");
+    if (!Rug.Load())
+    {
+        std::cout << "Failed to load rug model!\n";
+        glfwTerminate();
+        return -1;
     }
+
+    //Ucitavanje modela figure
+    Model Figure("models/anubis.obj");
+    if (!Figure.Load())
+    {
+        std::cout << "Failed to load anubis model!\n";
+        glfwTerminate();
+        return -1;
+    }
+
+    float cubeVertices[] = //Temena kocke koriscene za mesec
+    {
+        -0.2, -0.2, -0.2,       0.0, 0.0, 0.0,
+        +0.2, -0.2, -0.2,       0.0, 0.0, 0.0,
+        -0.2, -0.2, +0.2,       0.0, 0.0, 0.0,
+        +0.2, -0.2, +0.2,       0.0, 0.0, 0.0,
+
+        -0.2, +0.2, -0.2,       0.0, 0.0, 0.0,
+        +0.2, +0.2, -0.2,       0.0, 0.0, 0.0,
+        -0.2, +0.2, +0.2,       0.0, 0.0, 0.0,
+        +0.2, +0.2, +0.2,       0.0, 0.0, 0.0,
+    };
+
+    float pyramidVertices[] =  //Temena najblize piramide
+    {
+        -1.0, 0.0, -1.0,        0.0, 0.0, 0.0,      //0
+        - 1.0, 0.0,  1.0,       0.0, 0.0, 0.0,      //1
+         1.0, 0.0, -1.0,        0.0, 0.0, 0.0,      //2
+         1.0, 0.0,  1.0,        0.0, 0.0, 0.0,      //3
+         -1.0, 3.0,  0.0,        0.0, 0.0, 0.0,      //4
+    };
+
+    float secondpyramidVertices[] = //Temena srednje piramide
+    {
+        -1.0, 0.0, -1.0,        0.0, 0.0, 0.0,      //0
+        -1.0, 0.0,  1.0,       0.0, 0.0, 0.0,      //1
+         1.0, 0.0, -1.0,        0.0, 0.0, 0.0,      //2
+         1.0, 0.0,  1.0,        0.0, 0.0, 0.0,      //3
+         1.0, 3.0,  0.0,        0.0, 0.0, 0.0,      //4
+    };
+
+    float thirdpyramidVertices[] =  //Temena najdalje piramide
+    {
+        -1.0, 0.0, -1.0,        0.0, 0.0, 0.0,      //0
+        -1.0, 0.0,  1.0,       0.0, 0.0, 0.0,      //1
+         1.0, 0.0, -1.0,        0.0, 0.0, 0.0,      //2
+         1.0, 0.0,  1.0,        0.0, 0.0, 0.0,      //3
+         0.0, 3.0,  0.0,        0.0, 0.0, 0.0,      //4
+    };
+
+    unsigned int pyramidIndices[] = {
+        0, 1, 2,    //good
+        1, 3, 2,    //good
+
+        0, 4, 1,    //GOOD
+
+        1, 4, 3,    //good
+
+        2, 3, 4,   //good 
+
+        0, 2, 4
+    };
+    
+
+    unsigned int cubeIndices[] = {
+        0, 1, 3,
+        0, 2, 3,
+
+        4, 6, 7,
+        4, 5, 7,
+
+        3, 6, 2,
+        3, 6, 7,
+
+        0, 4, 1,
+        1, 4, 5,
+
+        0, 6, 2,
+        0, 4, 6,
+
+        1, 3, 7,
+        1, 7, 5
+    };
+
+    //Renderable objekti kocke i piramida
+    Renderable cube(cubeVertices, sizeof(cubeVertices), cubeIndices, sizeof(cubeIndices));
+    Renderable pyramid(pyramidVertices, sizeof(pyramidVertices), pyramidIndices, sizeof(pyramidIndices));
+    Renderable secondPyramid(secondpyramidVertices, sizeof(secondpyramidVertices), pyramidIndices, sizeof(pyramidIndices));
+    Renderable thirdPyramid(thirdpyramidVertices, sizeof(thirdpyramidVertices), pyramidIndices, sizeof(pyramidIndices));
+
+    //Podesavanje kamere
+    glm::mat4 m(1.0f);
+    glm::mat4 v = glm::lookAt(glm::vec3(0.0, -0.5, -2.5), glm::vec3(0.0, 0.4, 0.0), glm::vec3(0.0, 1.0, 0.0));
+    glm::mat4 p = glm::perspective(glm::radians(90.0f), (float)WindowWidth / WindowHeight, 0.1f, 100.0f);
+
+    //Ukljucivanje testiranja dubine i backface culling
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glClearColor(0.09020, 0.09020, 0.09020, 0.4);
+
+
+    float FrameStartTime = glfwGetTime();
+    float FrameEndTime = glfwGetTime();
+    float dt = FrameEndTime - FrameStartTime;
+    while (!glfwWindowShouldClose(Window)) {
+        glfwPollEvents();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        FrameStartTime = glfwGetTime();
+        glUseProgram(Basic.GetId());
+
+
+        Basic.SetProjection(p);
+        Basic.SetView(v);
+
+
+        //Crtanje meseca
+        Basic.SetColor(0.49020, 0.49020, 0.49020);
+        float moonAngleRotate = 0.0;
+        for (int i = 0; i < steps; i++) {
+            m = glm::translate(glm::mat4(1.0f), glm::vec3(5.0, 3.5, 0));
+            m = glm::scale(m, glm::vec3(0.7, 0.7, 0.7));
+            m = glm::rotate(m, glm::radians(moonAngleRotate), glm::vec3(1.0, 1.0, 1.0));
+            Basic.SetModel(m);
+            cube.Render();
+            moonAngleRotate += 5.0;
+        }
+
+        //Crtanje anubisa 1
+        m = glm::mat4(1.0);
+        m = glm::translate(m, glm::vec3(-3.2, -0.5, -0.25));
+        m = glm::scale(m, glm::vec3(0.002, 0.002, 0.002));
+        m = glm::rotate(m, glm::radians(150.0f), glm::vec3(0.0, 1.0, 0.0));
+        m = glm::rotate(m, glm::radians(25.0f), glm::vec3(1.0, 0.0, 0.0));
+        Basic.SetModel(m);
+        Figure.Render();
+
+        //Crtanje anubisa 2
+        m = glm::mat4(1.0);
+        m = glm::translate(m, glm::vec3(2.9, -0.50, -0.25));
+        m = glm::scale(m, glm::vec3(0.0015, 0.0015, 0.0015));
+        m = glm::rotate(m, glm::radians(240.0f), glm::vec3(0.0, 1.0, 0.0));
+        m = glm::rotate(m, glm::radians(12.0f), glm::vec3(0.0, 0.0, 1.0));
+
+        Basic.SetModel(m);
+        Figure.Render();
+
+        //Crtanje anubisa 3
+        m = glm::mat4(1.0);
+        m = glm::translate(m, glm::vec3(1.0, 0.0, 3.00));
+        m = glm::scale(m, glm::vec3(0.0010, 0.0010, 0.0010));
+
+        Basic.SetModel(m);
+        Figure.Render();
+        
+        //Crtanje peska
+        Basic.SetColor(0.40000, 0.20784, 0.00000);
+        m = glm::translate(glm::mat4(1.0f), glm::vec3(0, -2.5, 0.0));
+        m = glm::scale(m, glm::vec3(25.0, 11.0, 0.0));
+        Basic.SetModel(m);
+        cube.Render();
+
+        //Crtanje piramide 1
+        Basic.SetColor(0.20000, 0.10196, 0.00000);
+        m = glm::scale(glm::mat4(1.0f), glm::vec3(0.5, 0.5, 0.5));
+        m = glm::translate(m, glm::vec3(-1.2, -1.5, -2.5));
+        m = glm::rotate(m, glm::radians(10.0f), glm::vec3(0.0, 1.0, 0.0));
+        Basic.SetModel(m);
+        pyramid.Render();
+
+        //Crtanje piramide 2
+        Basic.SetColor(0.20000, 0.10196, 0.00000);
+        m = glm::scale(glm::mat4(1.0f), glm::vec3(0.37, 0.37, 0.37));
+        m = glm::translate(m, glm::vec3(3.8, -2.0, -2.0));
+        m = glm::rotate(m, glm::radians(-5.0f), glm::vec3(0.0, 1.0, 0.0));
+        Basic.SetModel(m);
+        secondPyramid.Render();
+
+        //Crtanje piramide 3
+        Basic.SetColor(0.20000, 0.10196, 0.00000);
+        m = glm::scale(glm::mat4(1.0f), glm::vec3(0.2, 0.2, 0.2));
+        m = glm::translate(m, glm::vec3(5.0, -1.2, 5.0));
+        m = glm::rotate(m, glm::radians(-30.0f), glm::vec3(0.0, 1.0, 0.0));
+        Basic.SetModel(m);
+        thirdPyramid.Render();
+
+        //Crtanje tepiha
+        Basic.SetColor(0, 0, 0);
+        m = glm::scale(glm::mat4(1.0f), glm::vec3(0.25, 0.25, 0.25));
+        m = glm::translate(m, glm::vec3(0.5, 1.75 + ((double)rand() / (RAND_MAX))/8, +0.5));
+        //Kretanje tepiha
+        processInput(Window, x, y, z);
+        m = glm::translate(m, glm::vec3(x, y, z));
+        Basic.SetModel(m);
+        Rug.Render();
+
+        glfwSwapBuffers(Window);
+
+        FrameEndTime = glfwGetTime();
+        dt = FrameEndTime - FrameStartTime;
+        if (dt < TargetFPS) {
+            int DeltaMS = (int)((TargetFrameTime - dt) * 1e3f);
+            std::this_thread::sleep_for(std::chrono::milliseconds(DeltaMS));
+            FrameEndTime = glfwGetTime();
+        }
+        dt = FrameEndTime - FrameStartTime;
+    }
+
 
     glfwTerminate();
     return 0;
