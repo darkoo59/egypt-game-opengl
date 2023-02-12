@@ -7,6 +7,26 @@ Shader::Shader(const std::string& vShaderPath, const std::string& fShaderPath) {
     mId = createBasicProgram(vs, fs);
 }
 
+unsigned
+Shader::GetId() const {
+    return mId;
+}
+
+void
+Shader::SetUniform1i(const std::string& uniform, int v) const {
+    glUniform1i(glGetUniformLocation(mId, uniform.c_str()), v);
+}
+
+void
+Shader::SetUniform1f(const std::string& uniform, float v) const {
+    glUniform1f(glGetUniformLocation(mId, uniform.c_str()), v);
+}
+
+void
+Shader::SetUniform3f(const std::string& uniform, const glm::vec3& v) const {
+    glUniform3f(glGetUniformLocation(mId, uniform.c_str()), v.x, v.y, v.z);
+}
+
 void
 Shader::SetUniform4m(const std::string& uniform, const glm::mat4& m) const {
     glUniformMatrix4fv(glGetUniformLocation(mId, uniform.c_str()), 1, GL_FALSE, &m[0][0]);
@@ -28,12 +48,6 @@ void Shader::SetProjection(const glm::mat4& m) const {
 
 void Shader::SetColor(const float r, const float g, const float b) {
     glUniform3f(glGetUniformLocation(mId, "uCol"), r, g, b);
-}
-
-
-unsigned
-Shader::GetId() const {
-    return mId;
 }
 
 unsigned

@@ -9,6 +9,7 @@ class Shader {
 public:
     static const unsigned POSITION_LOCATION = 0;
     static const unsigned COLOR_LOCATION = 1;
+    unsigned mId;
 
     /**
      * @brief Ctor
@@ -17,14 +18,31 @@ public:
      * @param fShaderPath Fragment shader file path
      */
     Shader(const std::string& vShaderPath, const std::string& fShaderPath);
-
-    /**
-     * @brief Gets shader ID
-     *
-     * @returns Shader ID
-     */
     unsigned GetId() const;
 
+    /**
+     * @brief Sets int uniform value
+     *
+     * @param uniform Name of uniform
+     * @param v Value
+     */
+    void SetUniform1i(const std::string& uniform, int v) const;
+
+    /**
+     * @brief Sets float uniform value
+     *
+     * @param uniform Name of uniform
+     * @param v Value
+     */
+    void SetUniform1f(const std::string& uniform, float v) const;
+
+    /**
+    * @brief Sets float uniform value
+    *
+    * @param uniform Name of uniform
+    * @param v Value
+    */
+    void SetUniform3f(const std::string& uniform, const glm::vec3& v) const;
     /**
      * @brief Sets 4x4 matrix uniform value
      *
@@ -53,11 +71,9 @@ public:
      * @param m Projection matrix
      */
     void SetProjection(const glm::mat4& m) const;
-
     //Postavlja uCol;
     void SetColor(const float, const float, const float);
 private:
-    unsigned mId;
 
     /**
      * @brief Loads shader from file and returns the compiled shader's ID

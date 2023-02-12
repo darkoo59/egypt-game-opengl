@@ -1,10 +1,9 @@
 #version 330 core
 
+in vec3 vCol;
 out vec4 FragColor;
-in vec3 chCol;
-uniform vec3 uCol;
 
 
 void main() {
-	FragColor = vec4(chCol + uCol, 1.0f);
+	FragColor = vec4(vCol, 1.0f);
 }

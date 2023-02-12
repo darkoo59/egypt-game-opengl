@@ -11,5 +11,5 @@ uniform vec3 offset;
 
 void main() {
 	chCol = aCol;
-	gl_Position = uProjection * uView * uModel * vec4(aPos + offset, 1.0f); //Paziti na redoslijed mnozenja jer su u pitanju matrice!
+	gl_Position = uProjection * uView * uModel * vec4(aPos + offset, 1.0f);
 }
