@@ -1,5 +1,8 @@
 <h1 align="center" id="title">Egypt world 🇪🇬</h1>
 
+<h2>▶ Gameplay</h2>
+<img src = "https://github.com/darkoo59/egypt-game-opengl/blob/main/CGBase/resources/gif/gameplay.gif" alt="project-gameplay" width="1000" height="450/"/>
+
 <h2>🧐 Features</h2>
 
 Here're some of the project's best features:
@@ -16,7 +19,7 @@ Here're some of the project's best features:
 <p>1. Cloning a repository</p>
 
 ```
-git clone https://github.com/darkoo59/egypt-world.git
+git clone https://github.com/darkoo59/egypt-game-opengl.git
 ```
 
 <p>2. Starting application</p>
